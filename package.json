@@ -1,6 +1,6 @@
 {
   "name": "@wizard9/json-patch-apply",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "A library for describing, calculating, and applying patches to Javascript Objects. ",
   "main": "index.js",
   "scripts": {
@@ -13,6 +13,10 @@
     "Patch",
     "JSON"
   ],
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/wizedix/json-patch-apply"
+  },
   "author": "Ben Hakala",
   "license": "GPL",
   "devDependencies": {
