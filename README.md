@@ -1,6 +1,22 @@
 # json-patch-apply
 an implementation of JSON patch RFC 6902
 
+# Usage
+Currently this is only set up for use with Typescript projects.  I will fix this in the future.
+```
+npm i @wizard9/json-patch-apply -S
+```
+In your project include it:
+```
+import {Patch} from "@wizard9/json-patch-apply";
+
+let diff = Patch.diff(source, target);
+let modified = Patch.apply(source, ...diff);
+
+// after this modified will be the same as target and diff contains the changes needed to make them the same
+```
+For more information on the format of patch etc. see here: https://tools.ietf.org/html/rfc6902
+
 # Build Locally
 ```
 npm install
