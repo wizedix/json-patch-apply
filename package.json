@@ -1,5 +1,5 @@
 {
-  "name": "patch",
+  "name": "json-patch-apply",
   "version": "1.0.0",
   "description": "A library for describing, calculating, and applying patches to Javascript Objects. ",
   "main": "index.js",
