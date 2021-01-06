@@ -78,3 +78,18 @@ npm run generate-conformance
 This will produce a file in tests called conformance.spec.ts.  Add changed file to git. After this you can run the 
 tests as per usual and they will be ran when you run the other tests.
 
+# Push to repo
+First make sure all tests pass and coverage is 100%
+```
+npm run coverage
+```
+clean and rebuild module
+```
+npm run clean
+npm install
+```
+login and push to maven repo
+```
+npm login
+npm publish --access public 
+```
