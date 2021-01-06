@@ -14,7 +14,7 @@
     "JSON"
   ],
   "author": "Ben Hakala",
-  "license": "ISC",
+  "license": "GPL",
   "devDependencies": {
     "@types/chai": "^4.2.11",
     "@types/lodash": "^4.14.167",
