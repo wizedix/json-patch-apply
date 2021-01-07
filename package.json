@@ -21,7 +21,6 @@
   "license": "GPL",
   "devDependencies": {
     "@types/chai": "^4.2.11",
-    "@types/lodash": "^4.14.167",
     "@types/mocha": "^7.0.2",
     "@types/node": "^14.14.20",
     "chai": "^4.2.0",
@@ -33,6 +32,7 @@
     "util.promisify": "^1.0.1"
   },
   "dependencies": {
-    "lodash": "^4.17.20"
+    "lodash": "^4.17.20",
+    "@types/lodash": "^4.14.167"
   }
 }
