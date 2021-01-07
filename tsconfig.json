@@ -9,7 +9,8 @@
     "noImplicitThis": true,                   /* Raise error on 'this' expressions with an implied 'any' type. */
     "skipLibCheck": true,
     "moduleResolution": "node",               /* Specify module resolution strategy: 'node-old' (Node.js) or 'classic' (TypeScript pre-1.6). */
-    "esModuleInterop": true                   /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
+    "esModuleInterop": true,                  /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
+    "declaration": true
   },
   "exclude": [
     "node_modules",

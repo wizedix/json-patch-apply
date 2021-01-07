@@ -2,11 +2,13 @@
   "name": "@wizard9/json-patch-apply",
   "version": "1.0.3",
   "description": "A library for describing, calculating, and applying patches to Javascript Objects. ",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "./node_modules/mocha/bin/mocha -r ts-node/register tests/**/*.spec.ts",
     "generate-conformance": "npx ts-node tests/generate_conformance.ts",
     "coverage": "nyc npm run test",
+    "prepublish": "tsc",
     "clean": "rm -fr coverage; rm -fr node_modules; rm -fr dist; rm -fr .nyc_output"
   },
   "keywords": [
@@ -14,8 +16,8 @@
     "JSON"
   ],
   "repository": {
-    "type" : "git",
-    "url" : "https://github.com/wizedix/json-patch-apply"
+    "type": "git",
+    "url": "https://github.com/wizedix/json-patch-apply"
   },
   "author": "Ben Hakala",
   "license": "GPL",

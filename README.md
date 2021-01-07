@@ -87,6 +87,7 @@ clean and rebuild module
 ```
 npm run clean
 npm install
+npm run prepublish
 ```
 login and push to maven repo
 ```
