@@ -49,11 +49,14 @@ export class JsonPointer {
             }
         });
 
+        let key: PropertyKey = last || "";
+        if(current instanceof Array && "-" === key)
+            key = current.length;
         if(current || current == source) {
             return {
                 source: source,
                 parent: current,
-                key: last || ""
+                key: key
             };
         }
     }

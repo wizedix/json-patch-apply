@@ -8,6 +8,6 @@ describe("diff", () => {
         let source = "abc";
         let target = undefined;
         let found = diff.diff(source, target);
-        expect(JSON.stringify(found)).eql("[{\"op\":\"remove\",\"path\":\"\",\"old\":\"abc\"}]");
+        expect(JSON.stringify(found)).eql("[{\"op\":\"remove\",\"path\":\"\"}]");
     });
 });

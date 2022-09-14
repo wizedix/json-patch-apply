@@ -39,7 +39,7 @@ describe("common", () => {
             expect(ValueType.primitive).eql(getValueType("abc"));
             expect(ValueType.primitive).eql(getValueType(true));
             expect(ValueType.primitive).eql(getValueType(false));
-            expect(ValueType.primitive).eql(getValueType(undefined));
+            expect(ValueType.undefined).eql(getValueType(undefined));
         });
     });
 });

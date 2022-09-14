@@ -13,7 +13,7 @@ describe("index", () => {
     }
 
     function verifyApply(source: any, target: any, operations: PatchOperation[]) {
-        let result = Patch.apply(source, ...operations);
+        let result = Patch.apply(source, operations);
         expect(target).eql(result);
     }
 
@@ -23,23 +23,19 @@ describe("index", () => {
             let expected = [{
                     op: "replace",
                     path: "/location/country/name",
-                    value: "USA",
-                    old: "Canada"
+                    value: "USA"
                 },{
                     op: "replace",
                     path: "/location/country/state/name",
-                    value: "Washington",
-                    old: "British Columbia"
+                    value: "Washington"
                 },{
                     op: "replace",
                     path: "/location/country/state/county/name",
-                    value: "King",
-                    old: "Lower Midland"
+                    value: "King"
                 },{
                     op: "replace",
                     path: "/location/country/state/county/city/name",
-                    value: "Seattle",
-                    old: "Vancouver"
+                    value: "Seattle"
                 }],
                 source = {location: {country: {name: "Canada", state: {name: "British Columbia", county: {name: "Lower Midland", city: {name: "Vancouver"}}}}}},
                 target = {location: {country: {name: "USA",    state: {name: "Washington",       county: {name: "King",          city: {name: "Seattle"  }}}}}};
@@ -52,8 +48,7 @@ describe("index", () => {
             let expected = [{
                     op: "replace",
                     path: "/num",
-                    value: "abc",
-                    old: 34
+                    value: "abc"
                 }],
                 source = {num: 34},
                 target = {num: "abc"};
@@ -66,8 +61,7 @@ describe("index", () => {
             let expected = [{
                     op: "replace",
                     path: "/num",
-                    value: 26,
-                    old: "abc"
+                    value: 26
                 }],
                 source = {num: "abc"},
                 target = {num: 26};
@@ -80,8 +74,7 @@ describe("index", () => {
             let expected = [{
                     op: "replace",
                     path: "/num",
-                    value: 26,
-                    old: 34
+                    value: 26
                 }],
                 source = {num: 34},
                 target = {num: 26};
@@ -92,17 +85,15 @@ describe("index", () => {
 
         it("it can handle number updates", () => {
             let source = {num: 25};
-            let value = Patch.apply(source, {
+            let value = Patch.apply(source, [{
                 op: "replace",
                 path: "/num",
                 value: 26,
-                old: 25,
             },{
                 op: "replace",
                 path: "/num",
-                value: 27,
-                old: 26
-            });
+                value: 27
+            }]);
             expect(value.num).eq(27);
         });
     });
@@ -110,27 +101,7 @@ describe("index", () => {
     describe("add", () => {
 
         describe("add value of object with nexted fields", () => {
-            let expected = [{
-                    op: "add",
-                    path: "/attributes",
-                    type: ValueType.object
-                },{
-                    op: "add",
-                    path: "/attributes/child",
-                    type: ValueType.object
-                },{
-                    op: "add",
-                    path: "/attributes/child/name",
-                    value: "Bob"
-                },{
-                    op: "add",
-                    path: "/attributes/other",
-                    type: ValueType.array
-                },{
-                    op: "add",
-                    path: "/attributes/other/0",
-                    value: 1
-                }],
+            let expected = [{"op":"add","path":"/attributes","value":{"child":{"name":"Bob"},"other":[1]}}],
                 source = {},
                 target = {
                     attributes: {
@@ -159,7 +130,7 @@ describe("index", () => {
             let expected = [{
                     op: "add",
                     path: "/titles",
-                    type: ValueType.array
+                    value: []
                 }],
                 source = {},
                 target = {titles: []};
@@ -171,7 +142,7 @@ describe("index", () => {
         describe("can add an item to a top level array", () => {
             let expected = [{
                     op: "add",
-                    path: "/0",
+                    path: "/-",
                     value: 1
                 }],
                 source: any[] = [],
@@ -182,16 +153,7 @@ describe("index", () => {
         });
 
         describe("can add to beginning of array", () => {
-            let expected = [{
-                    op: "add",
-                    path: "/titles/1",
-                    value: "Ruler"
-                },{
-                    op: "replace",
-                    path: "/titles/0",
-                    value: "King",
-                    old: "Ruler"
-                }],
+            let expected = [{op:"add",path:"/titles/0",value:"King"}],
                 source = {titles: ["Ruler"]},
                 target = {titles: ["King", "Ruler"]};
 
@@ -214,23 +176,7 @@ describe("index", () => {
         });
 
         describe("handles adding new object into an array", () => {
-            let expected = [{
-                    op: "add",
-                    path: "/rows/1",
-                    type: ValueType.object
-                },{
-                    op: "add",
-                    path: "/rows/1/id",
-                    value: 2
-                },{
-                    op: "add",
-                    path: "/rows/1/n",
-                    type: ValueType.object
-                },{
-                    op: "add",
-                    path: "/rows/1/n/a",
-                    value: "xyz"
-                }],
+            let expected = [{"op":"add","path":"/rows/-","value":{"id":2,"n":{"a":"xyz"}}}],
                 source = {rows: [{id: 1, n: {a: "abc"}}]},
                 target = {rows: [{id: 1, n: {a: "abc"}},{id: 2, n: {a: "xyz"}}]};
 
@@ -270,8 +216,7 @@ describe("index", () => {
             let expected = [{
                     op: "replace",
                     path: "/name",
-                    value: "Veronica",
-                    old: "Sophie"
+                    value: "Veronica"
                 }],
                 source = {name: "Sophie"},
                 target = {name: "Veronica"};
@@ -281,36 +226,7 @@ describe("index", () => {
         });
 
         describe("update property with nested values", () => {
-            let expected = [{
-                    op: "replace",
-                    path: "/desc",
-                    type: ValueType.object,
-                    old: "Sophie"
-                },{
-                    op: "add",
-                    path: "/desc/level",
-                    type: ValueType.object
-                },{
-                    op: "add",
-                    path: "/desc/level/type",
-                    value: "experience"
-                },{
-                    op: "add",
-                    path: "/desc/level/value",
-                    value: 34
-                },{
-                    op: "add",
-                    path: "/desc/items",
-                    type: ValueType.array
-                },{
-                    op: "add",
-                    path: "/desc/items/0",
-                    type: ValueType.object
-                },{
-                    op: "add",
-                    path: "/desc/items/0/name",
-                    value: "Bag of Holding"
-                }],
+            let expected = [{"op":"replace","path":"/desc","value":{"level":{"type":"experience","value":34},"items":[{"name":"Bag of Holding"}]}}],
                 source = {desc: "Sophie"},
                 target = {desc: {
                         level: {
@@ -331,8 +247,7 @@ describe("index", () => {
         describe("detects remove node", () => {
             let expected = [{
                     op: "remove",
-                    path: "/name",
-                    old: "Sophie"
+                    path: "/name"
                 }],
                 source = {name: "Sophie"},
                 target = {};
@@ -344,8 +259,7 @@ describe("index", () => {
         describe("can remove an array", () => {
             let expected = [{
                     op: "remove",
-                    path: "/titles",
-                    type: 1
+                    path: "/titles"
                 }],
                 source = {titles: []},
                 target = {};
@@ -357,8 +271,7 @@ describe("index", () => {
         describe("can remove an item to a top level array", () => {
             let expected = [{
                     op: "remove",
-                    path: "/0",
-                    old: 2
+                    path: "/0"
                 }],
                 source = [2],
                 target: any[] = [];
@@ -368,16 +281,7 @@ describe("index", () => {
         });
 
         describe("can remove from beginning of array", () => {
-            let expected = [{
-                    op: "remove",
-                    path: "/titles/1",
-                    old: "Ruler"
-                },{
-                    op: "replace",
-                    path: "/titles/0",
-                    value: "Ruler",
-                    old: "King"
-                }],
+            let expected = [{"op":"remove","path":"/titles/0"}],
                 source = {titles: ["King", "Ruler"]},
                 target = {titles: ["Ruler"]};
 
@@ -386,27 +290,7 @@ describe("index", () => {
         });
 
         describe("can delete with nexted values", () => {
-            let expected = [{
-                    op: "remove",
-                    path: "/titles/1/name",
-                    old: "Ruler of Austria"
-                },{
-                    op: "remove",
-                    path: "/titles/1",
-                    type: 2
-                },{
-                    op: "remove",
-                    path: "/titles/0/name",
-                    old: "King"
-                },{
-                    op: "remove",
-                    path: "/titles/0",
-                    type: 2
-                },{
-                    op: "remove",
-                    path: "/titles",
-                    type: 1
-                }],
+            let expected = [{"op":"remove","path":"/titles"}],
                 source = {titles: [{
                         name: "King"
                     },{

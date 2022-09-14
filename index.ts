@@ -15,7 +15,7 @@
  along with json-patch-apply.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {PatchOperation} from "./src/common";
+import {DiffFlags, PatchFlags, PatchOperation} from "./src/common";
 import {PatchDiff} from "./src/diff";
 import {PatchApply} from "./src/apply";
 
@@ -24,11 +24,26 @@ export class Patch {
     private static generator: PatchDiff = new PatchDiff();
     private static patch: PatchApply = new PatchApply();
 
-    static diff(source: any, target: any): PatchOperation[] {
-        return this.generator.diff(source, target);
+    /**
+     * returns a diff of the given target and source in the form of a list of patch operations.
+     *
+     * @param source
+     * @param target
+     * @param flags
+     */
+    static diff(source: any, target: any, flags?: DiffFlags[]): PatchOperation[] {
+        return this.generator.diff(source, target, flags);
     }
 
-    static apply(source: any, ...operations: PatchOperation[]): any {
-        return this.patch.apply(source, ...operations);
+    /**
+     * applies the given set of changes to the given source and returns the modified object with
+     * the changes applied.
+     *
+     * @param source
+     * @param operations
+     * @param flags
+     */
+    static apply(source: any, operations: PatchOperation[], flags?: PatchFlags[]): any {
+        return this.patch.apply(source, operations, flags);
     }
 }
