@@ -268,11 +268,11 @@ export class PatchDiff {
                  let tIdx = change.targetIndex + tgt[change.targetIndex];
                  let replace = {
                      old: {
-                         path: this.getArrayPath(path, change.sourceIndex, false, flags),
+                         path: this.getArrayPath(path, sIdx, false, flags),
                          value: oldValue
                      },
                      new: {
-                         path: this.getArrayPath(path, change.targetIndex, false, flags),
+                         path: this.getArrayPath(path, tIdx, false, flags),
                          value: newValue
                      }
                  };
