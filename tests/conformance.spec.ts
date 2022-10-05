@@ -1,6 +1,6 @@
 import {expect} from "chai";
 import {Patch} from "../index";
-import {PatchFlags, DiffFlags} from "../src/common";
+import {PatchFlags, DiffFlags} from "../src/types";
 
 /**
  * DO NOT CHANGE - changes will be lost!
@@ -70,7 +70,7 @@ describe("conformance", () => {
          runApplyTest([], [{"op":"add","path":"/0","value":"foo"}], undefined, ["foo"]);
       });
       it("tests.json #6 - diff toplevel array for test {\"comment\":\"toplevel array\",\"doc\":[],\"patch\":[{\"op\":\"add\",\"path\":\"/0\",\"value\":\"foo\"}],\"expected\":[\"foo\"]}", () => {
-         runDiffTest([], ["foo"], [{"op":"add","path":"/0","value":"foo"}], [0]);
+         runDiffTest([], ["foo"], [{"op":"add","path":"/0","value":"foo"}], [1]);
       });
       it("tests.json #7 - apply toplevel array, no change for test {\"comment\":\"toplevel array, no change\",\"doc\":[\"foo\"],\"patch\":[],\"expected\":[\"foo\"]}", () => {
          runApplyTest(["foo"], [], undefined, ["foo"]);
@@ -172,7 +172,7 @@ describe("conformance", () => {
          runApplyTest(["foo"], [{"op":"add","path":"/1","value":"bar"}], undefined, ["foo","bar"]);
       });
       it("tests.json #24 - diff for test {\"doc\":[\"foo\"],\"patch\":[{\"op\":\"add\",\"path\":\"/1\",\"value\":\"bar\"}],\"expected\":[\"foo\",\"bar\"]}", () => {
-         runDiffTest(["foo"], ["foo","bar"], [{"op":"add","path":"/1","value":"bar"}], [0]);
+         runDiffTest(["foo"], ["foo","bar"], [{"op":"add","path":"/1","value":"bar"}], [1]);
       });
       it("tests.json #25 - apply for test {\"doc\":[\"foo\",\"sil\"],\"patch\":[{\"op\":\"add\",\"path\":\"/1\",\"value\":\"bar\"}],\"expected\":[\"foo\",\"bar\",\"sil\"]}", () => {
          runApplyTest(["foo","sil"], [{"op":"add","path":"/1","value":"bar"}], undefined, ["foo","bar","sil"]);
@@ -190,7 +190,7 @@ describe("conformance", () => {
          runApplyTest(["foo","sil"], [{"op":"add","path":"/2","value":"bar"}], undefined, ["foo","sil","bar"]);
       });
       it("tests.json #27 - diff push item to array via last index + 1 for test {\"comment\":\"push item to array via last index + 1\",\"doc\":[\"foo\",\"sil\"],\"patch\":[{\"op\":\"add\",\"path\":\"/2\",\"value\":\"bar\"}],\"expected\":[\"foo\",\"sil\",\"bar\"]}", () => {
-         runDiffTest(["foo","sil"], ["foo","sil","bar"], [{"op":"add","path":"/2","value":"bar"}], [0]);
+         runDiffTest(["foo","sil"], ["foo","sil","bar"], [{"op":"add","path":"/2","value":"bar"}], [1]);
       });
       it("tests.json #28 - apply add item to array at index > length should fail for test {\"comment\":\"add item to array at index > length should fail\",\"doc\":[\"foo\",\"sil\"],\"patch\":[{\"op\":\"add\",\"path\":\"/3\",\"value\":\"bar\"}],\"error\":\"index is greater than number of items in array\"}", () => {
          runApplyTest(["foo","sil"], [{"op":"add","path":"/3","value":"bar"}], "index is greater than number of items in array", undefined);
@@ -289,7 +289,7 @@ describe("conformance", () => {
          runApplyTest({"foo":null}, [{"op":"replace","path":"/foo","value":"truthy"}], undefined, {"foo":"truthy"});
       });
       it("tests.json #47 - diff null value should be valid obj property to be replaced with something truthy for test {\"doc\":{\"foo\":null},\"patch\":[{\"op\":\"replace\",\"path\":\"/foo\",\"value\":\"truthy\"}],\"expected\":{\"foo\":\"truthy\"},\"comment\":\"null value should be valid obj property to be replaced with something truthy\"}", () => {
-         runDiffTest({"foo":null}, {"foo":"truthy"}, [{"op":"replace","path":"/foo","value":"truthy"}], [1]);
+         runDiffTest({"foo":null}, {"foo":"truthy"}, [{"op":"replace","path":"/foo","value":"truthy"}], [2]);
       });
       it("tests.json #48 - apply null value should be valid obj property to be moved for test {\"doc\":{\"foo\":null},\"patch\":[{\"op\":\"move\",\"from\":\"/foo\",\"path\":\"/bar\"}],\"expected\":{\"bar\":null},\"comment\":\"null value should be valid obj property to be moved\"}", () => {
          runApplyTest({"foo":null}, [{"op":"move","from":"/foo","path":"/bar"}], undefined, {"bar":null});
@@ -352,7 +352,7 @@ describe("conformance", () => {
          runApplyTest({"baz":[{"qux":"hello"}],"bar":1}, [{"op":"move","from":"/baz/0/qux","path":"/baz/1"}], undefined, {"baz":[{},"hello"],"bar":1});
       });
       it("tests.json #61 - diff for test {\"doc\":{\"baz\":[{\"qux\":\"hello\"}],\"bar\":1},\"patch\":[{\"op\":\"move\",\"from\":\"/baz/0/qux\",\"path\":\"/baz/1\"}],\"expected\":{\"baz\":[{},\"hello\"],\"bar\":1}}", () => {
-         runDiffTest({"baz":[{"qux":"hello"}],"bar":1}, {"baz":[{},"hello"],"bar":1}, [{"op":"move","from":"/baz/0/qux","path":"/baz/1"}], [0]);
+         runDiffTest({"baz":[{"qux":"hello"}],"bar":1}, {"baz":[{},"hello"],"bar":1}, [{"op":"move","from":"/baz/0/qux","path":"/baz/1"}], [1]);
       });
       it("tests.json #62 - apply for test {\"doc\":{\"baz\":[{\"qux\":\"hello\"}],\"bar\":1},\"patch\":[{\"op\":\"copy\",\"from\":\"/baz/0\",\"path\":\"/boo\"}],\"expected\":{\"baz\":[{\"qux\":\"hello\"}],\"bar\":1,\"boo\":{\"qux\":\"hello\"}}}", () => {
          runApplyTest({"baz":[{"qux":"hello"}],"bar":1}, [{"op":"copy","from":"/baz/0","path":"/boo"}], undefined, {"baz":[{"qux":"hello"}],"bar":1,"boo":{"qux":"hello"}});
@@ -364,7 +364,7 @@ describe("conformance", () => {
          runApplyTest({"foo":"bar"}, [{"op":"add","path":"","value":{"baz":"qux"}}], undefined, {"baz":"qux"});
       });
       it("tests.json #63 - diff replacing the root of the document is possible with add for test {\"comment\":\"replacing the root of the document is possible with add\",\"doc\":{\"foo\":\"bar\"},\"patch\":[{\"op\":\"add\",\"path\":\"\",\"value\":{\"baz\":\"qux\"}}],\"expected\":{\"baz\":\"qux\"}}", () => {
-         runDiffTest({"foo":"bar"}, {"baz":"qux"}, [{"op":"add","path":"","value":{"baz":"qux"}}], [2]);
+         runDiffTest({"foo":"bar"}, {"baz":"qux"}, [{"op":"add","path":"","value":{"baz":"qux"}}], [3]);
       });
       it("tests.json #64 - apply Adding to \"/-\" adds to the end of the array for test {\"comment\":\"Adding to \\\"/-\\\" adds to the end of the array\",\"doc\":[1,2],\"patch\":[{\"op\":\"add\",\"path\":\"/-\",\"value\":{\"foo\":[\"bar\",\"baz\"]}}],\"expected\":[1,2,{\"foo\":[\"bar\",\"baz\"]}]}", () => {
          runApplyTest([1,2], [{"op":"add","path":"/-","value":{"foo":["bar","baz"]}}], undefined, [1,2,{"foo":["bar","baz"]}]);
@@ -514,7 +514,7 @@ describe("conformance", () => {
          runApplyTest({"foo":["all","grass","cows","eat"]}, [{"op":"move","from":"/foo/1","path":"/foo/3"}], undefined, {"foo":["all","cows","eat","grass"]});
       });
       it("spec_tests.json #7 - diff A.7.  Moving an Array Element for test {\"comment\":\"A.7.  Moving an Array Element\",\"doc\":{\"foo\":[\"all\",\"grass\",\"cows\",\"eat\"]},\"patch\":[{\"op\":\"move\",\"from\":\"/foo/1\",\"path\":\"/foo/3\"}],\"expected\":{\"foo\":[\"all\",\"cows\",\"eat\",\"grass\"]}}", () => {
-         runDiffTest({"foo":["all","grass","cows","eat"]}, {"foo":["all","cows","eat","grass"]}, [{"op":"move","from":"/foo/1","path":"/foo/3"}], [0]);
+         runDiffTest({"foo":["all","grass","cows","eat"]}, {"foo":["all","cows","eat","grass"]}, [{"op":"move","from":"/foo/1","path":"/foo/3"}], [1]);
       });
       it("spec_tests.json #8 - apply A.8.  Testing a Value: Success for test {\"comment\":\"A.8.  Testing a Value: Success\",\"doc\":{\"baz\":\"qux\",\"foo\":[\"a\",2,\"c\"]},\"patch\":[{\"op\":\"test\",\"path\":\"/baz\",\"value\":\"qux\"},{\"op\":\"test\",\"path\":\"/foo/1\",\"value\":2}],\"expected\":{\"baz\":\"qux\",\"foo\":[\"a\",2,\"c\"]}}", () => {
          runApplyTest({"baz":"qux","foo":["a",2,"c"]}, [{"op":"test","path":"/baz","value":"qux"},{"op":"test","path":"/foo/1","value":2}], undefined, {"baz":"qux","foo":["a",2,"c"]});

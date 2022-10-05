@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import {DiffFlags} from "../src/common";
+import {DiffFlags} from "../src/types";
 
 const pre = "      ";
 const testEnd = pre + "});\n";

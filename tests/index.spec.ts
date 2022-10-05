@@ -1,6 +1,6 @@
 import {expect} from "chai";
 import {Patch} from "../index";
-import {PatchOperation, ValueType} from "../src/common";
+import {PatchOperation} from "../src/types";
 
 describe("index", () => {
     function verifyDiff(source: any, target: any, operations: PatchOperation[]) {
@@ -99,7 +99,6 @@ describe("index", () => {
     });
 
     describe("add", () => {
-
         describe("add value of object with nexted fields", () => {
             let expected = [{"op":"add","path":"/attributes","value":{"child":{"name":"Bob"},"other":[1]}}],
                 source = {},

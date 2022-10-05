@@ -15,52 +15,119 @@
  along with json-patch-apply.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {Change, ChangeValue, DiffFlags, getValueType, hasKey, PatchOperation, PatchOptional, ValueType} from "./common";
+import { PatchDiff } from "./common";
+import {
+    Change,
+    ChangeValue,
+    DiffFlags,
+    PatchOperation,
+    PatchOptional,
+    ValueType,
+    CopySearchResult,
+    IndexChange,
+    TrackedMin
+} from "./types";
 import * as _ from "lodash";
+import * as pointer from "json-pointer"
 
-export class PatchDiff {
+export class DiffProducer extends PatchDiff {
 
     diff(source: any, target: any, flags?: DiffFlags[]): PatchOperation[] {
-        let changes = this.diffAny(source, target, "", flags);
+        let changes: Change[] = this.diffAny(source, target, "", "", flags);
         let ops: PatchOperation[] = [];
-        let used: number[] = [];
-        let futureOp: any = {};
-        C: for(let i=0; i < changes.length; i++) {
-            if(used.includes(i))
+        let arrayShifts: {[key: string]: number[]} = {};
+        let visited: number[] = [];
+
+        for(let i=0; i < changes.length; i++) {
+            if(visited.includes(i))
                 continue;
             let change = changes[i];
-            let op: PatchOperation = !!futureOp[i] ? futureOp[i] : null;
+            let op: PatchOperation | null = null;
+            let test: PatchOperation | null = null;
 
-            if(!op) {
-                for(let j=i + 1; j < changes.length; j++) {
-                    if(used.includes(j))
-                        continue;
-                    let other = changes[j];
-                    if(change.new && !other.new && other.old && _.isEqual(change.new.value, other.old.value)) {
-                        used.push(j);
-                        op = this.createOperation("move", change.new.path, {from: other.old.path});
-                        break;
-                    } else if(!change.new && change.old && other.new && _.isEqual(change.old.value, other.new.value)) {
-                        futureOp[j] = this.createOperation("move", other.new.path, {from: change.old.path});
-                        continue C;
+            for(let j=i + 1; j < changes.length; j++) {
+                if(visited.includes(j))
+                    continue;
+                let other = changes[j];
+                let move: PatchOperation[] = [];
+
+                if(change.new) {
+                    if(other.old && _.isEqual(change.new.value, other.old.value)) {
+                        let parentPath = this.getParentPath(change.new.path)
+                        move = this.processMove(source, arrayShifts, parentPath, other.old, change.new, flags)
+
+                        if(this.isReplace(other)) {
+                            delete other.old;
+                        } else {
+                            visited.push(j);
+                        }
+
+                        if(! this.isAdd(change)) {
+                            delete change.new;
+                            i --;
+                        }
+                    }
+                } else if(change.old) {
+                    if(other.new && _.isEqual(change.old.value, other.new.value)) {
+                        let parentPath = this.getParentPath(other.new.path)
+                        move = this.processMove(source, arrayShifts, parentPath, change.old, other.new, flags)
+
+                        if(this.isReplace(other)) {
+                            delete other.new;
+                        } else {
+                            visited.push(j);
+                        }
+
+                        if(! this.isRemove(change)) {
+                            delete change.old;
+                            i --;
+                        }
                     }
                 }
 
-                if(!op) {
-                    if(change.old == undefined && change.new != undefined) {
-                        // For copy this type of search can be slow for large objects hence we need a limit of how deep + wide
-                        // we are willing to look.  For a value to be a candidate for copy it must exist both in the target
-                        // and source object, hence search will omit paths which do not exist in both trees.
-                        // path: string, value: any, source: any, target: any, limit: number
-                        let result = this.findPathForCopy(change.new.path, change.new.value, source, target, 150);
-                        if(result.path != undefined) {
-                            op =  this.createOperation("copy", change.new.path, {from: result.path});
+                if(move.length == 2) {
+                    test = move[0];
+                    op = move[1];
+                    break
+                } else if(move.length == 1) {
+                    op = move[0];
+                    break
+                }
+            }
+
+            if(!op) {
+                if(change.old == undefined && change.new != undefined) {
+                    // For copy this type of search can be slow for large objects hence we need a limit of how deep + wide
+                    // we are willing to look.  For a value to be a candidate for copy it must exist both in the target
+                    // and source object, hence search will omit paths which do not exist in both trees.
+                    // path: string, value: any, source: any, target: any, limit: number
+                    let result = this.findPathForCopy(change.new.key, change.new.path, change.new.value, source, target, 150);
+                    if(result.from != undefined) {
+                        let loc = result.from;
+                        let parent = pointer.get(source, loc.path);
+                        this.checkKey(source, arrayShifts, loc, change.new, flags);
+                        if(parent instanceof Array && typeof loc.key == "number" && typeof change.new.key == "number") {
+                            arrayShifts[loc.path] = arrayShifts[loc.path] ? arrayShifts[loc.path] : this.createArrayShifts(parent.length);
+                            if(loc.key < change.new.key)
+                                this.updateAdj(loc.key, change.new.key + 1, -1, arrayShifts[loc.path]);
+                            else
+                                this.updateAdj(change.new.key, loc.key + 1, 1, arrayShifts[loc.path]);
                         }
+                        if(this.hasFlag(DiffFlags.GENERATE_TESTS, flags)) {
+                            test = this.createOperation("test", loc.path, {value: loc.value});
+                        }
+                        op =  this.createOperation("copy", change.new.path, {from: loc.path});
                     }
                 }
             }
 
             if(!op) {
+                this.checkKey(source, arrayShifts, change.old || null, change.new || null, flags);
+
+                if(change.old && this.hasFlag(DiffFlags.GENERATE_TESTS, flags)) {
+                    test = this.createOperation("test", change.old.path, {value: change.old.value});
+                }
+
                 if(change.new) {
                     let opName = "add";
                     if(change.old) {
@@ -69,35 +136,46 @@ export class PatchDiff {
                         let isRootAdd = isRoot && this.hasFlag(DiffFlags.USE_ADD_FOR_REPLACE_OF_ROOT, flags);
                         isRootAdd = isRoot && (isRootAdd || (change.old.value instanceof Object && (this.getNodeCount(change.old.value) - 1) <= 0));
                         let isNullAdd = change.old.value == null;
-                        if(isRootAdd || isNullAdd) {
-                            if(! (flags && flags.includes(DiffFlags.USE_REPLACE_FOR_NULL))) {
-                                opName = "add";
-                            }
-                        }
+                        if((isRootAdd || isNullAdd) && (! (flags && flags.includes(DiffFlags.USE_REPLACE_FOR_NULL))))
+                            opName = "add";
                     }
+
                     op = this.createOperation(opName, change.new.path, {value: change.new.value});
+
+                    if( ! change.old) {
+                        this.updateShifts(source, arrayShifts, change.new.path, null, change.new.key);
+                    }
                 } else if(change.old) {
                     op = this.createOperation("remove", change.old.path, {});
+                    this.updateShifts(source, arrayShifts, change.old.path, change.old.key, null);
                 }
             }
 
-            ops.push(op);
+            if(test) ops.push(test)
+            if(op) ops.push(op);
         }
         return ops;
     }
 
-    private diffAny(source: any, target: any, path: string, flags?: DiffFlags[]): Change[] {
+    private diffAny(source: any, target: any, key: PropertyKey, path: string, flags?: DiffFlags[]): Change[] {
         let diff: Change[] = [];
-        let srcType: ValueType = getValueType(source);
-        let newVal = {
+        let srcType: ValueType = this.getValueType(source);
+        let tgtType: ValueType = this.getValueType(target);
+
+        if(srcType == tgtType && (_.isEqual(source, target) || source === null && target === null))
+            return diff;
+
+        let newVal: ChangeValue = {
+            key: key,
             path: path,
             value: target
         }
+
         if(srcType == ValueType.undefined) {
             diff.push({new: newVal});
         } else {
-            let tgtType: ValueType = getValueType(target);
             let oldVal: ChangeValue = {
+                key: key,
                 path: path,
                 value: source
             };
@@ -106,9 +184,9 @@ export class PatchDiff {
             } else if(tgtType != srcType) {
                 diff.push({old: oldVal, new: newVal});
             } else if(tgtType == ValueType.array) {
-                diff.push(...this.diffArray(path, source, target, flags));
+                diff.push(...this.diffArray(source, target, key, path, flags));
             } else if(tgtType == ValueType.object) {
-                diff.push(...this.diffObject(source, target, path, flags));
+                diff.push(...this.diffObject(source, target, key, path, flags));
             } else {
                 diff.push({old: oldVal, new: newVal});
             }
@@ -116,42 +194,31 @@ export class PatchDiff {
         return diff;
     }
 
-    private diffObject(source: any, target: any, path: string, flags?: DiffFlags[]): Change[] {
+    private diffObject(source: any, target: any, key: PropertyKey, path: string, flags?: DiffFlags[]): Change[] {
         let diff: Change[] = [];
         let sourceKeys = Object.keys(source);
         let targetKeys = Object.keys(target);
+
         targetKeys.filter(key => {
             return ! _.isEqual(target[key], source[key])
         }).map(key => {
             if(sourceKeys.includes(key))
-                return this.diffAny(source[key], target[key], `${path}/${key}`, flags);
-            return  this.diffAny(undefined, target[key], `${path}/${key}`, flags);
+                return this.diffAny(source[key], target[key], key, `${path}/${key}`, flags);
+            return this.diffAny(undefined, target[key], key, `${path}/${key}`, flags);
         }).forEach(ops => {
             diff.push(...ops)
         });
 
         sourceKeys.filter(key => ! targetKeys.includes(key)).forEach(key =>
-            diff.push({old: {path: `${path}/${key}`, value: source[key]}}));
+            diff.push({old: {key: key, path: `${path}/${key}`, value: source[key]}}));
 
-        let diff2: Change[] = [{old: {path: path, value: source}, new: {path: path, value: target}}];
+        let diff2: Change[] = [{old: {key: key, path: path, value: source}, new: {key: key, path: path, value: target}}];
         diff = this.selectDiff(diff, diff2);
 
         return diff;
     }
 
-    /**
-     * Compares the two arrays and returns a matrix for the computed edit distance to make the
-     * source array into the target array.  Uses levenshtein distance and backtracking to determine
-     * which operations will convert the one array into the other.
-     *
-     * @param path - The path so far in the object to the array being diffed
-     * @param source - The original array we want to compute the distance of edits to make it into target
-     * @param target - The desired array we want to convert source into
-     * @param flags - (optional) diff flags to apply to generating the diff
-     *
-     * @private
-     */
-    private diffArray(path: string, source: any[], target: any[], flags?: DiffFlags[]): Change[] {
+    private diffArray(source: any[], target: any[], key: PropertyKey, path: string, flags?: DiffFlags[]): Change[] {
         let track: any[] = [];
         let dist: any[] = [];
 
@@ -179,10 +246,10 @@ export class PatchDiff {
             }
         }
 
-        return this.levenshteinBacktrack(path, source, target, dist, track, flags);
+        return this.levenshteinBacktrack(source, target, key, path, dist, track, flags);
     }
 
-    private levenshteinBacktrack(path: string, source: any[], target: any[], dist: any[], track: any[], flags?: DiffFlags[]): Change[] {
+    private levenshteinBacktrack(source: any[], target: any[], key: PropertyKey, path: string,dist: any[], track: any[], flags?: DiffFlags[]): Change[] {
         let i = source.length;
         let j = target.length;
         let indexChanges: IndexChange[] = [];
@@ -228,58 +295,45 @@ export class PatchDiff {
 
         let changes: Change[] = [];
         let size = source.length;
-        let src: number[] = [], tgt: number[] = [];
-        for(let x=0; x < source.length; x++)
-            src[x] = 0;
-        for(let x=0; x < target.length; x++)
-            tgt[x] = 0;
 
         indexChanges.forEach(change => {
              if(change.targetIndex === undefined && change.sourceIndex !== undefined) { // remove
-                 let idx = change.sourceIndex + src[change.sourceIndex];
+                 let idx = change.sourceIndex;
                  changes.push({
-                     old: {
-                         path: this.getArrayPath(path, idx, false, flags),
-                         value: source[change.sourceIndex]
-                     }
+                     old: { key: idx, path: `${path}/${idx}`, value: source[change.sourceIndex] }
                  });
                  size --;
-                 this.updateAdj(change.sourceIndex, -1, src);
              } else if(change.sourceIndex === undefined && change.targetIndex !== undefined) { // insert
-                 let idx = change.targetIndex + tgt[change.targetIndex];
-                 let last = idx == size;
+                 let idx = change.targetIndex;
                  changes.push({
-                     new: {
-                         path: this.getArrayPath(path, idx, last, flags),
-                         value: target[change.targetIndex]
-                     }
+                     new: { key: idx, path: `${path}/${idx}`, value: target[change.targetIndex] }
                  });
                  size ++;
-                 this.updateAdj(change.targetIndex, 1, tgt);
              } else if(change.sourceIndex !== undefined && change.targetIndex !== undefined) { // replace
                  // when value exists in both arrays we can clobber the whole value or
                  // drill in and modify the values within the array value.  Here we will
                  // compare both options to determine which is more efficient.
                  let oldValue = source[change.sourceIndex];
                  let newValue = target[change.targetIndex];
-                 let oldType: ValueType = getValueType(oldValue);
-                 let newType: ValueType = getValueType(newValue);
-                 let sIdx = change.sourceIndex + src[change.sourceIndex];
-                 let tIdx = change.targetIndex + tgt[change.targetIndex];
+                 let oldType: ValueType = this.getValueType(oldValue);
+                 let newType: ValueType = this.getValueType(newValue);
+                 let srcIdx = change.sourceIndex;
                  let replace = {
                      old: {
-                         path: this.getArrayPath(path, sIdx, false, flags),
+                         key: srcIdx,
+                         path: `${path}/${srcIdx}`,
                          value: oldValue
                      },
                      new: {
-                         path: this.getArrayPath(path, tIdx, false, flags),
+                         key: change.targetIndex,
+                         path: `${path}/${change.targetIndex}`,
                          value: newValue
                      }
                  };
                  let diff: Change[] = [replace];
                  if(newType == oldType) {
                      if(ValueType.object == newType || ValueType.array == newType) {
-                         let diff2 = this.diffAny(oldValue, newValue, replace.new.path, flags);
+                         let diff2 = this.diffAny(oldValue, newValue,  replace.new.key,replace.new.path, flags);
                          diff = this.selectDiff(diff, diff2);
                      }
                  }
@@ -287,18 +341,92 @@ export class PatchDiff {
              }
         });
 
-        return changes;
+        return  this.selectDiff(changes, [{
+            old: {key: key, path: path, value: source},
+            new: {key: key, path: path, value: target}
+        }]);
     }
 
-    private updateAdj(index: number, change: number, adj: number[]) {
-        for(let i=index; i < adj.length; i++) {
-            adj[i] += change;
+    processMove(source: any, arrayShifts: {[key: string]: number[]}, parentPath: string, from: ChangeValue, to: ChangeValue, flags?: DiffFlags[]): PatchOperation[] {
+        let parent = pointer.get(source, parentPath);
+        this.checkKey(source, arrayShifts, from, to, flags);
+        if(parent instanceof Array && typeof from.key == "number" && typeof to.key == "number") {
+            arrayShifts[parentPath] = arrayShifts[parentPath] ? arrayShifts[parentPath] : this.createArrayShifts(parent.length);
+            if(from.key < to.key)
+                this.updateAdj(from.key, to.key + 1, -1, arrayShifts[parentPath]);
+            else
+                this.updateAdj(to.key, from.key + 1, 1, arrayShifts[parentPath]);
+        }
+        let op = this.createOperation("move", to.path, {from: from.path});
+        if(this.hasFlag(DiffFlags.GENERATE_TESTS, flags)) {
+            let test = this.createOperation("test", from.path, {value: from.value});
+            return [test, op]
+        } else {
+            return [op]
         }
     }
 
-    private getArrayPath(path: string, index: number, last: boolean, flags?: DiffFlags[]): string {
-        let segment = ! this.hasFlag(DiffFlags.ARRAY_INDEX_LITERAL, flags) && last ? "-" : index;
-        return `${path}/${segment}`;
+    private checkKey(source: any, arrayShifts: {[key: string]: number[]}, from: ChangeValue | null, to: ChangeValue | null, flags?: DiffFlags[]) {
+        if(from && typeof from.key == "number") {
+            let parentPath = this.getParentPath(from.path);
+            if(arrayShifts[parentPath]) {
+                let parent = pointer.get(source, parentPath);
+                if(parent instanceof Array) {
+                    let shifts = arrayShifts[parentPath];
+                    if(shifts[from.key] != 0) {
+                        from.key += shifts[from.key];
+                        from.path = `${parentPath}/${from.key}`;
+                    }
+                }
+            }
+        }
+
+        if(! this.hasFlag(DiffFlags.ARRAY_INDEX_LITERAL, flags) && to) {
+            if(to && typeof to.key == "number") {
+                let idx: number = to.key;
+                let parentPath = this.getParentPath(to.path);
+                let parent = pointer.get(source, parentPath);
+                if(idx >= parent.length) {
+                    to.path = parentPath + "/-";
+                }
+            }
+        }
+    }
+
+    updateShifts(source: any, arrayShifts: {[key: string]: number[]}, path: string, oldKey: PropertyKey | null, newKey: PropertyKey | null) {
+        let parentPath = this.getParentPath(path);
+        let parent = pointer.get(source, parentPath);
+        if(parent instanceof Array) {
+            if(! arrayShifts[parentPath])
+                arrayShifts[parentPath] = this.createArrayShifts(source.length);
+            let shifts = arrayShifts[parentPath];
+            let start = 0;
+            let end = shifts.length;
+            let amount = -1;
+            if(typeof oldKey == "number") {
+                start = oldKey + 1;
+                if(typeof newKey == "number") {
+                    end = newKey;
+                }
+            } else if(typeof newKey == "number") {
+                amount = 1;
+                start = newKey + 1;
+            }
+            this.updateAdj(start, end, amount, shifts);
+        }
+    }
+
+    private createArrayShifts(size: number): number[] {
+        let adj: number[] = [];
+        for(let x=0; x < size; x++)
+            adj[x] = 0;
+        return adj;
+    }
+
+    private updateAdj(start: number, end: number, change: number, remAdj: number[]) {
+        for(let i=start; i < end; i++) {
+            remAdj[i] += change;
+        }
     }
 
     private trackedMin(a: number, b: number, c: number): TrackedMin {
@@ -320,7 +448,7 @@ export class PatchDiff {
             path: path
         };
         Object.keys(optional).forEach(key => {
-            if(hasKey(optional, key) && optional[key] !== undefined)
+            if(this.hasKey(optional, key) && optional[key] !== undefined)
                 operation[key] = optional[key];
         });
         return operation;
@@ -395,8 +523,8 @@ export class PatchDiff {
      * @param limit - The max breadth + depth to search
      * @private
      */
-    private findPathForCopy(path: string, value: any, source: any, target: any, limit: number): CopySearchResult {
-        return this.doFindPathForCopy(path, "", value, source, target, limit, 0);
+    private findPathForCopy(key: PropertyKey, path: string, value: any, source: any, target: any, limit: number): CopySearchResult {
+        return this.doFindPathForCopy(key, path, "", value, source, target, limit, 0);
     }
 
     /**
@@ -404,6 +532,7 @@ export class PatchDiff {
      * source and target at the same path, that path must not equal the path we want to copy to.  The search shall not
      * exceed more than limit number of checks for the sum of breadth and depth.
      *
+     * @param key - The key in the path
      * @param path - The path we want to copy to
      * @param current - The current path to where we have traversed so far (searches start with "")
      * @param value - The value we are searching for
@@ -413,7 +542,7 @@ export class PatchDiff {
      * @param cost - The cost so far for the search
      * @private
      */
-    private doFindPathForCopy(path: string, current: string, value: any, source: any, target: any, limit: number, cost: number): CopySearchResult {
+    private doFindPathForCopy(key: PropertyKey, path: string, current: string, value: any, source: any, target: any, limit: number, cost: number): CopySearchResult {
         let result: CopySearchResult = {cost: cost};
 
         if(source instanceof Array && target instanceof Array) {
@@ -424,12 +553,16 @@ export class PatchDiff {
                 let cur = `${current}/${i}`;
                 if(cur != path) {
                     if (_.isEqual(value, source[i]) || value===null && source[i]===null) {
-                        result.path = cur;
+                        result.from = {
+                            path: cur,
+                            key: i,
+                            value: source[i]
+                        }
                         break;
                     } else {
-                        let childSearch = this.doFindPathForCopy(path, cur, value, source[i], target[i], limit, result.cost);
+                        let childSearch = this.doFindPathForCopy(i, path, cur, value, source[i], target[i], limit, result.cost);
                         result.cost += childSearch.cost;
-                        if(childSearch.path != null) {
+                        if(childSearch.from != null) {
                             result = childSearch;
                             break;
                         }
@@ -446,24 +579,32 @@ export class PatchDiff {
                 let cur = `${current}/${key}`;
                 if(cur != path) {
                     if(_.isEqual(value, source[key]) || value===null && source[key]===null) {
-                        result.path = cur;
+                        result.from = {
+                            path: cur,
+                            key: key,
+                            value: source[key]
+                        };
                         break;
                     } else {
-                        let childSearch = this.doFindPathForCopy(path, cur, value, source[key], target[key], limit, result.cost);
+                        let childSearch = this.doFindPathForCopy(key, path, cur, value, source[key], target[key], limit, result.cost);
                         result.cost += childSearch.cost;
-                        if(childSearch.path != null) {
+                        if(childSearch.from != null) {
                             result = childSearch;
                             break;
                         }
                     }
                 }
             }
-        } else if(getValueType(source) === ValueType.primitive && getValueType(target) === ValueType.primitive) {
+        } else if(this.getValueType(source) === ValueType.primitive && this.getValueType(target) === ValueType.primitive) {
             if(! this.incrementAndVerifyCost(result, limit))
                 return result;
 
             if(path != current && _.isEqual(source, value))
-                result.path = current;
+                result.from = {
+                    path: current,
+                    key: key,
+                    value: source
+                }
         }
         return result;
     }
@@ -483,19 +624,32 @@ export class PatchDiff {
     private hasFlag(flag: DiffFlags, flags?: DiffFlags[]): boolean {
         return flags instanceof Array && flags.includes(flag);
     }
-}
 
-interface IndexChange {
-    sourceIndex?: number
-    targetIndex?: number
-}
+    getValueType(value: any): ValueType {
+        let type;
+        if(value === null) {
+            type = ValueType.null;
+        } else if (value === undefined) {
+            type = ValueType.undefined;
+        } else if(value instanceof Array) {
+            type = ValueType.array;
+        } else if(value instanceof Object) {
+            type = ValueType.object;
+        } else {
+            type = ValueType.primitive;
+        }
+        return type;
+    }
 
-interface CopySearchResult {
-    cost: number,
-    path?: string
-}
+    isAdd(change: Change): boolean {
+        return !change.old && !!change.new;
+    }
 
-interface TrackedMin {
-    value: number
-    index: number
+    isRemove(change: Change): boolean {
+        return !!change.old && !change.new;
+    }
+
+    isReplace(change: Change): boolean {
+        return !!change.old && !!change.new;
+    }
 }

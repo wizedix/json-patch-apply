@@ -2,6 +2,7 @@
     "cache": false,
     "check-coverage": false,
     "extension": [
+        ".js",
         ".ts"
     ],
     "include": [
@@ -9,11 +10,9 @@
         "**/*.ts"
     ],
     "exclude": [
-        "coverage/**",
-        "node_modules/**",
-        "**/*.d.ts",
-        "**/*.test.ts",
-        "**/*.spec.ts"
+        "coverage",
+        "dist/tests",
+        "tests/generate_conformance.ts"
     ],
     "sourceMap": true,
     "reporter": [

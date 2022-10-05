@@ -15,14 +15,14 @@
  along with json-patch-apply.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {DiffFlags, PatchFlags, PatchOperation} from "./src/common";
-import {PatchDiff} from "./src/diff";
-import {PatchApply} from "./src/apply";
+import {DiffFlags, PatchFlags, PatchOperation} from "./src/types";
+import {DiffProducer} from "./src/diff";
+import {PatchProcessor} from "./src/apply";
 
 export class Patch {
 
-    private static generator: PatchDiff = new PatchDiff();
-    private static patch: PatchApply = new PatchApply();
+    private static generator: DiffProducer = new DiffProducer();
+    private static patch: PatchProcessor = new PatchProcessor();
 
     /**
      * returns a diff of the given target and source in the form of a list of patch operations.

@@ -34,7 +34,10 @@
     "util.promisify": "^1.0.1"
   },
   "dependencies": {
+    "-": "^0.0.1",
+    "@types/json-pointer": "^1.0.31",
     "@types/lodash": "^4.14.167",
+    "json-pointer": "^0.6.2",
     "lodash": "^4.17.21"
   }
 }
