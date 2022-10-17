@@ -1,6 +1,7 @@
 import {expect} from "chai";
 import {Patch} from "../index";
 import {PatchOperation} from "../src/types";
+import * as _ from "lodash";
 
 describe("index", () => {
     function verifyDiff(source: any, target: any, operations: PatchOperation[]) {

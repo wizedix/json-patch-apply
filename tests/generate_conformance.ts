@@ -6,17 +6,17 @@ const testEnd = pre + "});\n";
 const testFlags: any = {
     "tests.json": {
         "diff": {
-            6:  [DiffFlags.ARRAY_INDEX_LITERAL],
-            24: [DiffFlags.ARRAY_INDEX_LITERAL],
-            27: [DiffFlags.ARRAY_INDEX_LITERAL],
+            6:  [DiffFlags.FAVOR_ORDINAL],
+            24: [DiffFlags.FAVOR_ORDINAL],
+            27: [DiffFlags.FAVOR_ORDINAL],
             47: [DiffFlags.USE_REPLACE_FOR_NULL],
-            61: [DiffFlags.ARRAY_INDEX_LITERAL],
+            61: [DiffFlags.FAVOR_ORDINAL],
             63: [DiffFlags.USE_ADD_FOR_REPLACE_OF_ROOT]
         }
     },
     "spec_tests.json": {
         "diff": {
-            7: [DiffFlags.ARRAY_INDEX_LITERAL]
+            7: [DiffFlags.FAVOR_ORDINAL]
         }
     }
 };
@@ -78,7 +78,7 @@ let tests2 = JSON.parse(fs.readFileSync('../json-patch-tests/spec_tests.json').t
 let out = "";
 out += "import {expect} from \"chai\";\n";
 out += "import {Patch} from \"../index\";\n";
-out += "import {PatchFlags, DiffFlags} from \"../src/common\";\n";
+out += "import {PatchFlags, DiffFlags} from \"../src/types\";\n";
 out += "\n";
 out += "/**\n";
 out += " * DO NOT CHANGE - changes will be lost!\n";

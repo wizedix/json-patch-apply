@@ -289,7 +289,7 @@ describe("conformance", () => {
          runApplyTest({"foo":null}, [{"op":"replace","path":"/foo","value":"truthy"}], undefined, {"foo":"truthy"});
       });
       it("tests.json #47 - diff null value should be valid obj property to be replaced with something truthy for test {\"doc\":{\"foo\":null},\"patch\":[{\"op\":\"replace\",\"path\":\"/foo\",\"value\":\"truthy\"}],\"expected\":{\"foo\":\"truthy\"},\"comment\":\"null value should be valid obj property to be replaced with something truthy\"}", () => {
-         runDiffTest({"foo":null}, {"foo":"truthy"}, [{"op":"replace","path":"/foo","value":"truthy"}], [2]);
+         runDiffTest({"foo":null}, {"foo":"truthy"}, [{"op":"replace","path":"/foo","value":"truthy"}], [5]);
       });
       it("tests.json #48 - apply null value should be valid obj property to be moved for test {\"doc\":{\"foo\":null},\"patch\":[{\"op\":\"move\",\"from\":\"/foo\",\"path\":\"/bar\"}],\"expected\":{\"bar\":null},\"comment\":\"null value should be valid obj property to be moved\"}", () => {
          runApplyTest({"foo":null}, [{"op":"move","from":"/foo","path":"/bar"}], undefined, {"bar":null});
@@ -364,7 +364,7 @@ describe("conformance", () => {
          runApplyTest({"foo":"bar"}, [{"op":"add","path":"","value":{"baz":"qux"}}], undefined, {"baz":"qux"});
       });
       it("tests.json #63 - diff replacing the root of the document is possible with add for test {\"comment\":\"replacing the root of the document is possible with add\",\"doc\":{\"foo\":\"bar\"},\"patch\":[{\"op\":\"add\",\"path\":\"\",\"value\":{\"baz\":\"qux\"}}],\"expected\":{\"baz\":\"qux\"}}", () => {
-         runDiffTest({"foo":"bar"}, {"baz":"qux"}, [{"op":"add","path":"","value":{"baz":"qux"}}], [3]);
+         runDiffTest({"foo":"bar"}, {"baz":"qux"}, [{"op":"add","path":"","value":{"baz":"qux"}}], [4]);
       });
       it("tests.json #64 - apply Adding to \"/-\" adds to the end of the array for test {\"comment\":\"Adding to \\\"/-\\\" adds to the end of the array\",\"doc\":[1,2],\"patch\":[{\"op\":\"add\",\"path\":\"/-\",\"value\":{\"foo\":[\"bar\",\"baz\"]}}],\"expected\":[1,2,{\"foo\":[\"bar\",\"baz\"]}]}", () => {
          runApplyTest([1,2], [{"op":"add","path":"/-","value":{"foo":["bar","baz"]}}], undefined, [1,2,{"foo":["bar","baz"]}]);
