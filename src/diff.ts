@@ -21,7 +21,13 @@ import {
     PatchOperation,
     PatchResult
 } from "./types";
-import {ChangeProcessor, CopyChangeProcessor, DefaultChangeProcessor, MoveChangeProcessor} from "./change";
+import {
+    ChangeProcessor,
+    ChangeItemProcessor,
+    CopyChangeItemProcessor,
+    DefaultChangeItemProcessor,
+    MoveChangeItemProcessor, JsonNodeCounter
+} from "./change";
 import {PatchProcessor} from "./apply";
 import {
     ArrayDiff,
@@ -31,34 +37,42 @@ import {
     NextDiffProcessor,
     ObjectDiff,
     FallbackDiff,
-    TypeMismatchDiff, ProcessorArgs
+    TypeMismatchDiff,
+    ProcessorArgs
 } from "./processor";
 
 export class DiffProducer extends DiffBase {
 
     readonly patchProcessor = new PatchProcessor()
-    private readonly changeProcessors: ChangeProcessor[] = [new MoveChangeProcessor(), new CopyChangeProcessor(), new DefaultChangeProcessor()];
-    // private readonly changeProcessors: ChangeProcessor[] = [new DefaultChangeProcessor()];
+    private readonly changeProcessors: ChangeItemProcessor[] = [new MoveChangeItemProcessor(), new CopyChangeItemProcessor(), new DefaultChangeItemProcessor()];
     private readonly diffProcessors: DiffProcessor[] = [new MissingAndSameDiff(), new TypeMismatchDiff(), new ArrayDiff(), new ObjectDiff(), new FallbackDiff()];
 
     diff(source: any, target: any, flags?: DiffFlags[]): PatchOperation[] {
+        let fastDiff = false;
+        let size = Math.max(JsonNodeCounter.getNodeCount(source), JsonNodeCounter.getNodeCount(target));
+        if(size > 100) {
+            fastDiff = true;
+        }
+
+        let changeProcessor = new ChangeProcessor();
         let config: DiffConfig = {
-            processors: this.diffProcessors,
             flags: flags,
-            arrayShifts: {}
+            processors: this.diffProcessors,
+            arrayChanges: {},
+            fastDiff: fastDiff
         };
         let args: ProcessorArgs = {
+            index: 0,
+            changes: [],
+            ops: [],
+            visited: [],
             source: source,
             target: target,
             key: "",
-            path: "",
-            index: 0,
-            changes: [],
-            visited: []
+            path: ""
         }
         let next: NextDiffProcessor = DiffProcessor.createNextDiffProcessor(config.processors);
         args.changes = next.next().diff(config, args, next);
-        let ops: PatchOperation[] = [];
         let adj = 0;
 
         for(let i=0; (i + adj) < args.changes.length; i++) {
@@ -69,19 +83,17 @@ export class DiffProducer extends DiffBase {
             let result: PatchResult = {};
 
             args.index = idx;
-            ChangeProcessor.processAll(config, args, change, result, this.changeProcessors);
 
-            if(idx != args.index)
-                adj = args.index - idx;
+            adj += changeProcessor.processAll(config, args, change, result, this.changeProcessors);
 
             if(result.test) {
-                ops.push(result.test)
+                args.ops.push(result.test)
             }
 
             if(result.op) {
-                ops.push(result.op);
+                args.ops.push(result.op);
             }
         }
-        return ops;
+        return args.ops;
     }
 }

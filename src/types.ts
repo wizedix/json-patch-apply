@@ -1,3 +1,6 @@
+import {ProcessorArgs} from "./processor";
+import _ from "lodash";
+
 export enum ValueType {
     undefined,
     null,
@@ -31,6 +34,7 @@ export interface ChangeValue {
     path: string,
     key: PropertyKey
     value: any
+    adj?: number
 }
 
 export interface IndexChange {
@@ -187,4 +191,113 @@ export enum PatchFlags {
 export interface PatchResult {
     op?: PatchOperation
     test?: PatchOperation
+}
+
+export class ArrayChange {
+    readonly args: ProcessorArgs
+    readonly parentPath: string
+    readonly sourceParent: any[]
+    readonly targetParent: any[]
+    readonly shifts: number[]
+    arraySize: number
+    readonly visitedTo: number[]
+
+    constructor(
+        args: ProcessorArgs,
+        parentPath: string,
+        sourceParent: any[],
+        targetParent: any[]
+    ) {
+        this.args = args
+        this.parentPath = parentPath
+        this.sourceParent = sourceParent
+        this.targetParent = targetParent
+        this.shifts = []
+        this.arraySize = sourceParent.length
+        this.visitedTo = []
+
+        for(let i=0; i < this.arraySize; i++) {
+            this.shifts[i] = 0;
+        }
+    }
+
+    public getAdjustedTargetKey(newKey: number, currentVal: any): number {
+        if(this.getNearestLeft(newKey) == -1)
+            return newKey;
+
+        let countAdj = this.getShifts(currentVal, false);
+        return newKey - countAdj;
+    }
+
+    /**
+     * returns the number of remaining shifts between the current args.index up until a change has a new
+     * value equal to the search.
+     *
+     * Note if null is passed for search all changes are searched form current args.index to the end of the
+     * set of changes.
+     *
+     * @param search The new value to search for, stop looking if this value is found.
+     * @param skipDelete When true deletes are not counted in the shifts.
+     *
+     * @return
+     */
+    private getShifts(search: any, skipDelete: boolean): number {
+        let countAdj = 0;
+        for(let i=this.args.index + 1; i < this.args.changes.length; i++) {
+            let c: Change = this.args.changes[i];
+            if(! this.args.visited.includes(i)) {
+                if (search != null && c.new != null && _.isEqual(c.new.value, search)) {
+                    break;
+                }
+
+                if (! skipDelete && c.old != null && c.new == null) {
+                    countAdj--;
+                } else if (c.new != null && c.old == null) {
+                    countAdj++;
+                }
+            }
+        }
+        return countAdj;
+    }
+
+    /**
+     * Returns the actual current index for the given sourceKey.  This assumes the sourceKey has been modified to
+     * represent the current index in the array as we are processing.  This will find the original index from an
+     * adjusted index.
+     */
+    public getAdjustedSourceKeyFromSourceKey(fromKey: number): number {
+        let index = fromKey;
+        if(this.shifts[fromKey] != 0) {
+            index += this.shifts[fromKey];
+        }
+        return index;
+    }
+
+    public getAdjustedSourceKeyFromToKey(toKey: number): number {
+        let list: number[] = [];
+        for(let i=0; i < this.shifts.length; i++) {
+            let adjusted = i + this.shifts[i];
+            if(toKey == adjusted) {
+                list.push(i);
+            }
+        }
+        return list.length == 0 ? toKey : list[0];
+    }
+
+    public getNearestLeft(toIdx: number): number {
+        this.visitedTo.sort();
+        let last = -1;
+        for(let i=0; i < this.visitedTo.length; i++) {
+            let value = this.visitedTo[i];
+            if(value < toIdx) {
+                last = value;
+            } else {
+                break;
+            }
+
+            if(last >= toIdx)
+                break
+        }
+        return last;
+    }
 }

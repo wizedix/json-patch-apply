@@ -1,11 +1,27 @@
 import {DiffBase} from "./common";
-import {Change, ChangeValue, DiffFlags, IndexChange, TrackedMin, ValueType} from "./types";
+import {ArrayChange, Change, ChangeValue, DiffFlags, IndexChange, PatchOperation, TrackedMin, ValueType} from "./types";
 import * as _ from "lodash";
+import {DiffSelector} from "./change";
 
 export interface DiffConfig {
     flags?: DiffFlags[]
     processors: DiffProcessor[]
-    arrayShifts: {[key: string]: number[]}
+    arrayChanges: {[key: string]: ArrayChange}
+
+    /**
+     * When this is true all optional paths are no longer explored, only a default and simple logic is used to
+     * create a diff.  This diff will not be optimized, for example it will skip the processing of move and copy
+     * operations, it will skip evaluation of different array comparison strategies, it will no longer evaluate from
+     * multiple ways of processing and will use a single predefined method which is best in most circumstances.
+     *
+     * With or without this option the diff will have the same effect.  The problem with fastDiff is that the size
+     * of the diff will generally be a bit larger and take more room to store in DBs and be harder for humans to
+     * understand.  These issues are resolved by setting fastDiff to false however this will then take more time
+     * in calculating the diff and for large objects may result in higher latency then we would want.
+     *
+     * This option was invented to handle the case where for example we need to
+     */
+    fastDiff: boolean
 }
 
 export interface DiffArguments {
@@ -18,6 +34,7 @@ export interface DiffArguments {
 export interface ProcessorArgs extends DiffArguments {
     index: number
     changes: Change[]
+    ops: PatchOperation[]
     visited: number[]
 }
 
@@ -47,6 +64,8 @@ export interface NextDiffProcessor {
 }
 
 export abstract class DiffProcessor extends DiffBase {
+
+    readonly diffSelector = new DiffSelector()
 
     static createNextDiffProcessor(processors: DiffProcessor[]): NextDiffProcessor {
         return new DiffProcessorIterator(processors);
@@ -140,8 +159,8 @@ export class ArrayDiff extends DiffProcessor {
 
         let changes = this.levenshteinBacktrack(config, source, target, path, dist, track, flags);
 
-        if(! this.hasFlag(DiffFlags.FAVOR_ARRAY_REORDER, flags)) {
-            changes = this.selectDiff(changes, [{
+        if(! config.fastDiff && ! this.hasFlag(DiffFlags.FAVOR_ARRAY_REORDER, flags)) {
+            changes = this.diffSelector.selectDiff(changes, [{
                 old: {key: key, path: path, value: source},
                 new: {key: key, path: path, value: target}
             }]);
@@ -234,7 +253,7 @@ export class ArrayDiff extends DiffProcessor {
                     }
                 };
                 let diff: Change[] = [replace];
-                if(newType == oldType && (ValueType.object == newType || ValueType.array == newType)) {
+                if(! config.fastDiff && newType == oldType && (ValueType.object == newType || ValueType.array == newType)) {
                     let args: DiffArguments = {
                         source: oldValue,
                         target: newValue,
@@ -242,7 +261,7 @@ export class ArrayDiff extends DiffProcessor {
                         path: newPath
                     };
                     let diff2 = this.diffAny(config, args)
-                    diff = this.selectDiff(diff, diff2);
+                    diff = this.diffSelector.selectDiff(diff, diff2);
                 }
                 changes.push(...diff);
             }
@@ -290,13 +309,18 @@ export class ObjectDiff extends DiffProcessor {
             diff.push(...ops)
         });
 
-        sourceKeys.filter(key => ! targetKeys.includes(key)).forEach(key =>
-            diff.push({old: {key: key, path: `${path}/${key}`, value: source[key]}}));
+        sourceKeys.filter(key => ! targetKeys.includes(key)).forEach(key => {
+            let change: Change = {old: {key: key, path: `${path}/${key}`, value: source[key]}};
+            diff.push(change)
+        });
 
-        let diff2: Change[] = [{old: {key: key, path: path, value: source}, new: {key: key, path: path, value: target}}];
-        diff = this.selectDiff(diff, diff2);
+        let selected: Change[] = diff;
+        if(! config.fastDiff) {
+            let diff2: Change[] = [{old: {key: key, path: path, value: source}, new: {key: key, path: path, value: target}}];
+            selected = this.diffSelector.selectDiff(diff, diff2);
+        }
 
-        return diff;
+        return selected;
     }
 }
 

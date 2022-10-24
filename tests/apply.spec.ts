@@ -477,9 +477,17 @@ describe("apply", () => {
             describe("move", () => {
                 describe("array", () => {
                     let x = diff.diff([1,2,1,3,1,4],[2,3,4,1,1,1])
-                    it("can move multiple after", () => expect(patch.apply([1,2,1,3,1,4],diff.diff([1,2,1,3,1,4],[2,3,4,1,1,1]))).eql([2,3,4,1,1,1]));
+                    it("can move multiple after", () => {
+                        let d = diff.diff([1,2,1,3,1,4],[2,3,4,1,1,1]);
+                        let found = patch.apply([1,2,1,3,1,4] ,d);
+                        expect(found).eql([2,3,4,1,1,1]);
+                    });
                     it("can move multiple after with literal", () => expect(patch.apply([1,2,1,3,1,4],diff.diff([1,2,1,3,1,4],[2,3,4,1,1,1], [DiffFlags.FAVOR_ORDINAL]))).eql([2,3,4,1,1,1]));
-                    it("can move multiple before", () => expect(patch.apply([1,2,1,3,1,4],diff.diff([1,2,1,3,1,4],[1,1,1,2,3,4]))).eql([1,1,1,2,3,4]));
+                    it("can move multiple before", () => {
+                        let d = diff.diff([1,2,1,3,1,4],[1,1,1,2,3,4]);
+                        let found = patch.apply([1,2,1,3,1,4],d);
+                        expect(found).eql([1,1,1,2,3,4])
+                    });
                     it("can move multiple before with literal", () => expect(patch.apply([1,2,1,3,1,4],diff.diff([1,2,1,3,1,4],[1,1,1,2,3,4], [DiffFlags.FAVOR_ORDINAL]))).eql([1,1,1,2,3,4]));
                     it("can move after", () => expect(patch.apply([1,2],diff.diff([1,2],[2,1]))).eql([2,1]));
                     it("can move before", () => expect(patch.apply([2,1],diff.diff([2,1],[1,2]))).eql([1,2]));
@@ -588,7 +596,8 @@ describe("apply", () => {
                     it("can copy multiple after with literal", () => expect(patch.apply([1,2,1,3,1,4],diff.diff([1,2,1,3,1,4],[1,2,1,3,1,4,1,1,1], [DiffFlags.GENERATE_TESTS, DiffFlags.FAVOR_ORDINAL]))).eql([1,2,1,3,1,4,1,1,1]));
                     it("can copy multiple before", () => {
                         let d = diff.diff([1,2,1,3,1,4],[1,1,1,1,2,1,3,1,4], [DiffFlags.GENERATE_TESTS]);
-                        expect(patch.apply([1,2,1,3,1,4],d)).eql([1,1,1,1,2,1,3,1,4])
+                        let found = patch.apply([1,2,1,3,1,4],d);
+                        expect(found).eql([1,1,1,1,2,1,3,1,4])
                     });
                     it("can copy multiple before with literal", () => expect(patch.apply([1,2,1,3,1,4],diff.diff([1,2,1,3,1,4],[1,1,1,1,2,1,3,1,4], [DiffFlags.GENERATE_TESTS, DiffFlags.FAVOR_ORDINAL]))).eql([1,1,1,1,2,1,3,1,4]));
                     it("can copy after", () => expect(patch.apply([1,2],diff.diff([1,2],[1,2,1], [DiffFlags.GENERATE_TESTS]))).eql([1,2,1]));
